@@ -32,6 +32,13 @@ import androidx.navigation.compose.rememberNavController
 import com.example.speedrun_compose.ui.theme.SpeedRunAppTheme
 import android.provider.Settings
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.ui.Alignment
+
+
 
 
 class MainActivity : ComponentActivity() {
@@ -332,144 +339,154 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun GameDetailScreen(gameName: String) {
         var sections by remember { mutableStateOf(listOf<String>()) }
+        var selectedSection by remember { mutableStateOf("") }
+        var sectionTimers by remember { mutableStateOf(mapOf<String, Pair<Long, Boolean>>()) }
+        var totalElapsedTime by remember { mutableStateOf(0L) }
         var showCreateSectionDialog by remember { mutableStateOf(false) }
         var showEditSectionDialog by remember { mutableStateOf(false) }
         var showDeleteSectionDialog by remember { mutableStateOf(false) }
-        var selectedSection by remember { mutableStateOf("") }
         var newSectionName by remember { mutableStateOf(TextFieldValue("")) }
 
-        // State del Drawer para mostrar el menú lateral
-        val drawerState = rememberDrawerState(DrawerValue.Open) // Lo mantenemos abierto
-        val scope = rememberCoroutineScope()
+        // Efecto para gestionar los cronómetros activos
+        LaunchedEffect(sectionTimers) {
+            while (true) {
+                kotlinx.coroutines.delay(10L) // Reducimos el intervalo a 10 ms para contar milisegundos
+                sectionTimers = sectionTimers.mapValues { (key, value) ->
+                    val (time, isRunning) = value
+                    if (isRunning) time + 10 to isRunning else time to isRunning
+                }
+                totalElapsedTime = sectionTimers.values.sumOf { it.first }
+            }
+        }
 
-        // Column que contiene el contenido principal
-        ModalNavigationDrawer(
-            drawerState = drawerState,
-            drawerContent = {
-                // Contenido del Drawer (menú lateral)
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp)
-                ) {
-                    Text("Opciones", style = MaterialTheme.typography.titleLarge)
+        // Función para convertir tiempo en milisegundos a horas:minutos:segundos.milisegundos
+        fun formatTime(milliseconds: Long): String {
+            val hours = (milliseconds / 3600000).toInt() // 1 hora = 3600000 milisegundos
+            val minutes = ((milliseconds % 3600000) / 60000).toInt() // 1 minuto = 60000 milisegundos
+            val seconds = ((milliseconds % 60000) / 1000).toInt() // 1 segundo = 1000 milisegundos
+            val millis = (milliseconds % 1000).toInt() // Milisegundos
 
-                    Spacer(modifier = Modifier.height(16.dp))
+            return String.format("%02d:%02d:%02d.%03d", hours, minutes, seconds, millis)
+        }
 
-                    // Play Button
-                    Button(onClick = { /* Lógica para reproducir */ }) {
-                        Text("Play")
-                    }
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Contenido principal
+            Column(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .weight(1f)
+                    .padding(16.dp)
+            ) {
+                Text("Detalles de $gameName", style = MaterialTheme.typography.headlineSmall)
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Pause Button
-                    Button(onClick = { /* Lógica para pausar */ }) {
-                        Text("Pause")
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Next Section Button
-                    Button(onClick = { /* Lógica para la siguiente sección */ }) {
-                        Text("Next Section")
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Cancel Button
-                    Button(onClick = { /* Lógica para cancelar */ }) {
-                        Text("Cancel")
+                // Lista de secciones
+                if (sections.isEmpty()) {
+                    Text("No hay secciones añadidas.", color = Color.Gray)
+                } else {
+                    LazyColumn {
+                        items(sections) { section ->
+                            val (time, isRunning) = sectionTimers[section] ?: 0L to false
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        section,
+                                        modifier = Modifier.clickable {
+                                            selectedSection = section
+                                        }
+                                    )
+                                    // Mostrar el tiempo formateado en horas:minutos:segundos.milisegundos
+                                    Text("Tiempo: ${formatTime(time)}")
+                                }
+                                IconButton(
+                                    onClick = {
+                                        sectionTimers = sectionTimers.mapValues { (key, value) ->
+                                            if (key == section) value.first to !value.second else value
+                                        }
+                                    }
+                                ) {
+                                    Icon(
+                                        if (isRunning) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                                        contentDescription = if (isRunning) "Pausar" else "Reanudar"
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
-            },
-            content = {
-                // Contenido principal de la pantalla
-                Column(modifier = Modifier.padding(16.dp)) {
-                    // Título con el nombre del juego
-                    Text("Detalles de $gameName", style = MaterialTheme.typography.headlineSmall)
 
-                    // Lista de secciones
-                    if (sections.isEmpty()) {
-                        Text("No hay secciones añadidas.", color = Color.Gray)
-                    } else {
-                        LazyColumn {
-                            items(sections) { section ->
-                                Text(
-                                    section,
-                                    modifier = Modifier
-                                        .padding(8.dp)
-                                        .clickable {
-                                            selectedSection =
-                                                section // Permitir seleccionar sección
-                                        }
-                                )
-                            }
-                        }
-                    }
+                Spacer(modifier = Modifier.weight(1f))
 
-                    Spacer(modifier = Modifier.weight(1f))
+                // Cronómetro total (con formato adecuado)
+                Text(
+                    "Tiempo total acumulado: ${formatTime(totalElapsedTime)}",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.Blue
+                )
+            }
 
-                    // Menú de gestión de secciones (añadir, editar, eliminar)
-                    Row(
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        // Botón para agregar una nueva sección
-                        IconButton(onClick = { showCreateSectionDialog = true }) {
-                            Icon(Icons.Filled.Add, contentDescription = "Añadir Sección")
-                        }
+            // Menú de gestión de secciones (abajo)
+            Row(
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+                    .background(MaterialTheme.colorScheme.surface)
+                    .padding(vertical = 8.dp)
+            ) {
+                // Botón para agregar una nueva sección
+                IconButton(onClick = { showCreateSectionDialog = true }) {
+                    Icon(Icons.Filled.Add, contentDescription = "Añadir Sección")
+                }
 
-                        // Botón para editar una sección
-                        IconButton(onClick = {
-                            if (selectedSection.isNotBlank()) {
-                                showEditSectionDialog = true
-                            }
-                        }) {
-                            Icon(Icons.Filled.Edit, contentDescription = "Editar Sección")
-                        }
+                // Botón para editar la sección seleccionada
+                IconButton(
+                    onClick = {
+                        if (selectedSection.isNotEmpty()) showEditSectionDialog = true
+                    },
+                    enabled = selectedSection.isNotEmpty()
+                ) {
+                    Icon(Icons.Filled.Edit, contentDescription = "Editar Sección")
+                }
 
-                        // Botón para eliminar una sección
-                        IconButton(onClick = {
-                            if (selectedSection.isNotBlank()) {
-                                showDeleteSectionDialog = true
-                            }
-                        }) {
-                            Icon(Icons.Filled.Delete, contentDescription = "Eliminar Sección")
-                        }
-                    }
+                // Botón para eliminar la sección seleccionada
+                IconButton(
+                    onClick = {
+                        if (selectedSection.isNotEmpty()) showDeleteSectionDialog = true
+                    },
+                    enabled = selectedSection.isNotEmpty()
+                ) {
+                    Icon(Icons.Filled.Delete, contentDescription = "Eliminar Sección")
                 }
             }
-        )
+        }
 
-        // Diálogo para crear una nueva sección
+        // Diálogos (Crear, Editar, Eliminar)
         if (showCreateSectionDialog) {
             AlertDialog(
                 onDismissRequest = { showCreateSectionDialog = false },
                 title = { Text("Crear una nueva sección") },
                 text = {
-                    Column {
-                        Text("Introduce el nombre de la nueva sección:")
-                        BasicTextField(
-                            value = newSectionName,
-                            onValueChange = { newSectionName = it },
-                            textStyle = TextStyle(color = Color.Black),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(8.dp)
-                        )
-                    }
+                    TextField(
+                        value = newSectionName,
+                        onValueChange = { newSectionName = it },
+                        label = { Text("Nombre de la sección") }
+                    )
                 },
                 confirmButton = {
                     Button(
                         onClick = {
                             if (newSectionName.text.isNotBlank()) {
                                 sections = sections + newSectionName.text
-                                newSectionName = TextFieldValue("") // Limpiar el campo
+                                sectionTimers = sectionTimers + (newSectionName.text to (0L to false))
+                                newSectionName = TextFieldValue("") // Limpiar campo
                             }
                             showCreateSectionDialog = false
                         }
@@ -485,33 +502,31 @@ class MainActivity : ComponentActivity() {
             )
         }
 
-        // Diálogo para editar una sección
-        if (showEditSectionDialog && selectedSection.isNotBlank()) {
+        if (showEditSectionDialog && selectedSection.isNotEmpty()) {
             AlertDialog(
                 onDismissRequest = { showEditSectionDialog = false },
                 title = { Text("Editar sección") },
                 text = {
-                    Column {
-                        Text("Introduce el nuevo nombre para \"$selectedSection\":")
-                        BasicTextField(
-                            value = newSectionName,
-                            onValueChange = { newSectionName = it },
-                            textStyle = TextStyle(color = Color.Black),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(8.dp)
-                        )
-                    }
+                    TextField(
+                        value = newSectionName,
+                        onValueChange = { newSectionName = it },
+                        label = { Text("Nuevo nombre para \"$selectedSection\"") }
+                    )
                 },
                 confirmButton = {
                     Button(
                         onClick = {
                             if (newSectionName.text.isNotBlank()) {
-                                sections = sections.map {
+                                val updatedSections = sections.map {
                                     if (it == selectedSection) newSectionName.text else it
                                 }
+                                val updatedTimers = sectionTimers.mapKeys {
+                                    if (it.key == selectedSection) newSectionName.text else it.key
+                                }
+                                sections = updatedSections
+                                sectionTimers = updatedTimers
                                 selectedSection = newSectionName.text
-                                newSectionName = TextFieldValue("") // Limpiar el campo
+                                newSectionName = TextFieldValue("") // Limpiar campo
                             }
                             showEditSectionDialog = false
                         }
@@ -527,20 +542,19 @@ class MainActivity : ComponentActivity() {
             )
         }
 
-        // Diálogo para eliminar una sección
-        if (showDeleteSectionDialog && selectedSection.isNotBlank()) {
+        if (showDeleteSectionDialog && selectedSection.isNotEmpty()) {
             AlertDialog(
                 onDismissRequest = { showDeleteSectionDialog = false },
                 title = { Text("Eliminar sección") },
-                text = {
-                    Text("¿Estás seguro de que quieres eliminar \"$selectedSection\"?")
-                },
+                text = { Text("¿Estás seguro de que deseas eliminar \"$selectedSection\"?") },
                 confirmButton = {
                     Button(
                         onClick = {
                             sections = sections.filter { it != selectedSection }
+                            sectionTimers = sectionTimers - selectedSection
+                            selectedSection = ""
+                            totalElapsedTime = sectionTimers.values.sumOf { it.first }
                             showDeleteSectionDialog = false
-                            selectedSection = "" // Limpiar selección
                         }
                     ) {
                         Text("Eliminar")
@@ -554,6 +568,8 @@ class MainActivity : ComponentActivity() {
             )
         }
     }
+
+
 
 
     @Composable
