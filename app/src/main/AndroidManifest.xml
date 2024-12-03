@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools" >
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+<!--    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />-->
+<!--    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />-->
+<!--    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />-->
 
 
     <application
@@ -27,21 +27,21 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <receiver android:name=".BootReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-            </intent-filter>
-        </receiver>
+<!--        <receiver android:name=".BootReceiver"-->
+<!--            android:exported="true">-->
+<!--            <intent-filter>-->
+<!--                <action android:name="android.intent.action.BOOT_COMPLETED" />-->
+<!--            </intent-filter>-->
+<!--        </receiver>-->
 
-        <service
-            android:name=".FloatingMenuService"
-            android:exported="true"
-            android:permission="android.permission.FOREGROUND_SERVICE">
-            <intent-filter>
-                <action android:name="com.example.speedrun_compose.FloatingMenuService" />
-            </intent-filter>
-        </service>
+<!--        <service-->
+<!--            android:name=".FloatingMenuService"-->
+<!--            android:exported="true"-->
+<!--            android:permission="android.permission.FOREGROUND_SERVICE">-->
+<!--            <intent-filter>-->
+<!--                <action android:name="com.example.speedrun_compose.FloatingMenuService" />-->
+<!--            </intent-filter>-->
+<!--        </service>-->
 
 
     </application>
