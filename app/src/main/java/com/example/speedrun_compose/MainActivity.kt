@@ -1,14 +1,9 @@
 package com.example.speedrun_compose
 
-import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -25,20 +20,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.speedrun_compose.ui.theme.SpeedRunAppTheme
-import android.provider.Settings
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.border
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Pause
-import androidx.compose.ui.Alignment
-
-
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.speedrun_compose.viewmodels.GameListViewModel
 
 
 class MainActivity : ComponentActivity() {
@@ -60,47 +52,30 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun SpeedRunAppNavigation() {
+        val viewModel: GameListViewModel = viewModel()  // Obtén el ViewModel dentro del cuerpo de la función
         val navController = rememberNavController()
-        var games by remember {
-            mutableStateOf(
-                listOf(
-                    "Super Mario Bros",
-                    "The Legend of Zelda",
-                    "Minecraft",
-                    "Dark Souls"
-                )
-            )
-        }
+
+        // Obtenemos los juegos desde el ViewModel (ahora List<Game>)
+        var games by remember { mutableStateOf<List<Game>>(emptyList()) }
 
         // Diálogos
         var showCreateDialog by remember { mutableStateOf(false) }
         var showEditDialog by remember { mutableStateOf(false) }
         var showDeleteDialog by remember { mutableStateOf(false) }
         var showSelectDialog by remember { mutableStateOf(false) }
-        var selectedGame by remember { mutableStateOf("") }
+        var selectedGame by remember { mutableStateOf<Game?>(null) }
         var newGameName by remember { mutableStateOf(TextFieldValue("")) }
 
-        // Variable para almacenar la ruta actual
         var currentRoute by remember { mutableStateOf<String?>(null) }
 
-        // Utilizamos LaunchedEffect para observar cambios en la ruta
         LaunchedEffect(navController) {
             snapshotFlow { navController.currentBackStackEntry?.destination?.route }
-                .collect { route ->
-                    // Actualizamos currentRoute solo si ha cambiado
-                    currentRoute = route
-                    Log.d(
-                        "NavRoute",
-                        "Ruta actual: $route"
-                    ) // Log para ver todas las rutas, incluyendo "game_details"
-                }
+                .collect { route -> currentRoute = route }
         }
 
-        // Comenzamos con el Scaffold para la estructura de la pantalla
         Scaffold(
             topBar = { /* Personaliza el topBar si lo deseas */ },
             bottomBar = {
-                // Solo mostramos el menú cuando estamos en "game_list"
                 if (currentRoute == "game_list") {
                     BottomMenuBar(
                         onCreateGame = { showCreateDialog = true },
@@ -110,7 +85,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
         ) { paddingValues ->
-            // El contenido de las pantallas de la aplicación
             NavHost(
                 navController = navController,
                 startDestination = "game_list",
@@ -118,7 +92,7 @@ class MainActivity : ComponentActivity() {
             ) {
                 composable("game_list") {
                     GameListScreen(
-                        games = games,
+                        games = games, // Pasa la lista completa de juegos (sin mapear a nombres)
                         onAddGame = { showCreateDialog = true },
                         onGameSelected = { gameName ->
                             navController.navigate("game_details/$gameName")
@@ -128,11 +102,6 @@ class MainActivity : ComponentActivity() {
                 composable("game_details/{gameName}") { backStackEntry ->
                     val gameName = backStackEntry.arguments?.getString("gameName") ?: ""
                     GameDetailScreen(gameName)
-                    // Agrega este log para ver cuando llegas a la pantalla de detalles
-                    Log.d(
-                        "NavRoute",
-                        "Ruta actual en Game Details: ${navController.currentBackStackEntry?.destination?.route}"
-                    )
                 }
                 composable("add_speedrun/{gameName}") { backStackEntry ->
                     val gameName = backStackEntry.arguments?.getString("gameName") ?: ""
@@ -141,7 +110,7 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // Diálogos de la aplicación
+        // Diálogo para crear un nuevo juego
         if (showCreateDialog) {
             AlertDialog(
                 onDismissRequest = { showCreateDialog = false },
@@ -163,8 +132,8 @@ class MainActivity : ComponentActivity() {
                     Button(
                         onClick = {
                             if (newGameName.text.isNotBlank()) {
-                                games = games + newGameName.text
-                                newGameName = TextFieldValue("") // Limpiar el campo de texto
+                                viewModel.addGame(Game(0, newGameName.text))  // Usar el ViewModel para agregar un juego
+                                newGameName = TextFieldValue("")
                             }
                             showCreateDialog = false
                         }
@@ -174,58 +143,6 @@ class MainActivity : ComponentActivity() {
                 },
                 dismissButton = {
                     Button(onClick = { showCreateDialog = false }) {
-                        Text("Cancelar")
-                    }
-                }
-            )
-        }
-
-        // Mantener el valor actualizado de selectedGame
-        LaunchedEffect(showSelectDialog) {
-            if (showSelectDialog && selectedGame.isBlank() && games.isNotEmpty()) {
-                selectedGame =
-                    games.first() // Si no hay juego seleccionado, se selecciona el primero de la lista
-            }
-        }
-
-        // 1. Modificar el nombre de un juego
-        if (showEditDialog) {
-            AlertDialog(
-                onDismissRequest = { showEditDialog = false },
-                title = { Text("Editar nombre del juego") },
-                text = {
-                    Column {
-                        Text("Introduce el nuevo nombre para \"$selectedGame\":")
-                        BasicTextField(
-                            value = newGameName,
-                            onValueChange = { newGameName = it },
-                            textStyle = TextStyle(color = Color.White),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(8.dp)
-                        )
-                    }
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            if (newGameName.text.isNotBlank()) {
-                                // Actualizar la lista de juegos con el nuevo nombre
-                                games = games.map {
-                                    if (it == selectedGame) newGameName.text else it
-                                }
-                                selectedGame =
-                                    newGameName.text // Asegurarse de que el juego seleccionado también tenga el nuevo nombre
-                                newGameName = TextFieldValue("") // Limpiar el campo de texto
-                            }
-                            showEditDialog = false
-                        }
-                    ) {
-                        Text("Guardar")
-                    }
-                },
-                dismissButton = {
-                    Button(onClick = { showEditDialog = false }) {
                         Text("Cancelar")
                     }
                 }
@@ -243,18 +160,18 @@ class MainActivity : ComponentActivity() {
                         LazyColumn {
                             items(games) { game ->
                                 Text(
-                                    text = game,
+                                    text = game.name,  // Usamos game.name para mostrar el nombre del juego
                                     modifier = Modifier
                                         .clickable {
-                                            selectedGame =
-                                                game // Se selecciona el juego sin cerrar el diálogo
+                                            selectedGame = game  // Se selecciona el juego completo
                                         }
                                         .padding(8.dp)
                                 )
                             }
                         }
+
                         // Mostrar el juego seleccionado
-                        if (selectedGame.isNotBlank()) {
+                        if (selectedGame.toString().isNotBlank()) {
                             Text("Juego seleccionado: $selectedGame", color = Color.Gray)
                         }
                     }
@@ -262,7 +179,7 @@ class MainActivity : ComponentActivity() {
                 confirmButton = {
                     Button(
                         onClick = {
-                            if (selectedGame.isNotBlank()) {
+                            if (selectedGame.toString().isNotBlank()) {
                                 showEditDialog = true // Muestra el diálogo de edición
                                 showSelectDialog = false // Cerramos el diálogo de selección
                             }
@@ -274,7 +191,7 @@ class MainActivity : ComponentActivity() {
                 dismissButton = {
                     Button(
                         onClick = {
-                            if (selectedGame.isNotBlank()) {
+                            if (selectedGame.toString().isNotBlank()) {
                                 // Eliminar el juego seleccionado
                                 games = games.filter { it != selectedGame }
                                 showDeleteDialog = false // Cerramos el diálogo de eliminación
@@ -317,17 +234,22 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun GameListScreen(
-        games: List<String>,
+        games: List<Game>, // Cambié de List<String> a List<Game>
         onAddGame: () -> Unit,
         onGameSelected: (String) -> Unit
     ) {
-        // Lista de juegos
         LazyColumn {
             items(games) { game ->
-                GameItem(game, onGameSelected)
+                Text(
+                    text = game.name, // Usamos el nombre del juego
+                    modifier = Modifier
+                        .clickable { onGameSelected(game.name) } // Pasamos el nombre del juego
+                        .padding(8.dp)
+                )
             }
         }
     }
+
 
     @Composable
     fun GameItem(game: String, onGameSelected: (String) -> Unit) {
@@ -392,17 +314,25 @@ class MainActivity : ComponentActivity() {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(8.dp),
+                                    .padding(8.dp)
+                                    .background(
+                                        if (selectedSection == section) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                                        else Color.Transparent
+                                    )
+                                    .border(
+                                        width = if (selectedSection == section) 2.dp else 0.dp,
+                                        color = if (selectedSection == section) MaterialTheme.colorScheme.primary else Color.Transparent
+                                    )
+                                    .clickable { selectedSection = section }, // Cambiar la selección al hacer clic
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         section,
-                                        modifier = Modifier.clickable {
-                                            selectedSection = section
-                                        }
+                                        style = if (selectedSection == section) MaterialTheme.typography.bodyLarge.copy(
+                                            color = MaterialTheme.colorScheme.primary
+                                        ) else MaterialTheme.typography.bodyLarge
                                     )
-                                    // Mostrar el tiempo formateado en horas:minutos:segundos.milisegundos
                                     Text("Tiempo: ${formatTime(time)}")
                                 }
                                 IconButton(
@@ -420,6 +350,7 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     }
+
                 }
 
                 Spacer(modifier = Modifier.weight(1f))
