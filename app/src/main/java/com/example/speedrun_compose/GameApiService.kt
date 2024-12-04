@@ -5,9 +5,11 @@ import retrofit2.http.Query
 
 interface GameApiService {
     @GET("games/")
-    suspend fun getGames(    @Query("api_key") apiKey: String,
-                             @Query("format") format: String = "json"
+    suspend fun getGames(
+        @Query("api_key") apiKey: String = "8dc4b2a2106922dfb271c362c1b71950bdbbf6e8",
+        @Query("format") format: String = "json"
     ): ApiResponse
+
 }
 
 data class ApiResponse(

@@ -52,20 +52,16 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun SpeedRunAppNavigation() {
-        val viewModel: GameListViewModel = viewModel()  // Obtén el ViewModel dentro del cuerpo de la función
+        val viewModel: GameListViewModel = viewModel() // Obtén el ViewModel
+        val games by viewModel.games.collectAsState(initial = emptyList()) // Observa los juegos del ViewModel
         val navController = rememberNavController()
 
-        // Obtenemos los juegos desde el ViewModel (ahora List<Game>)
-        var games by remember { mutableStateOf<List<Game>>(emptyList()) }
-
-        // Diálogos
+        // Diálogos y estados
         var showCreateDialog by remember { mutableStateOf(false) }
-        var showEditDialog by remember { mutableStateOf(false) }
-        var showDeleteDialog by remember { mutableStateOf(false) }
         var showSelectDialog by remember { mutableStateOf(false) }
+        var showDeleteDialog by remember { mutableStateOf(false) } // Aquí declaras showDeleteDialog
         var selectedGame by remember { mutableStateOf<Game?>(null) }
-        var newGameName by remember { mutableStateOf(TextFieldValue("")) }
-
+        var newGameName by remember { mutableStateOf("") }
         var currentRoute by remember { mutableStateOf<String?>(null) }
 
         LaunchedEffect(navController) {
@@ -74,7 +70,7 @@ class MainActivity : ComponentActivity() {
         }
 
         Scaffold(
-            topBar = { /* Personaliza el topBar si lo deseas */ },
+            topBar = { /* Configura una barra superior si lo deseas */ },
             bottomBar = {
                 if (currentRoute == "game_list") {
                     BottomMenuBar(
@@ -92,7 +88,7 @@ class MainActivity : ComponentActivity() {
             ) {
                 composable("game_list") {
                     GameListScreen(
-                        games = games, // Pasa la lista completa de juegos (sin mapear a nombres)
+                        games = games,
                         onAddGame = { showCreateDialog = true },
                         onGameSelected = { gameName ->
                             navController.navigate("game_details/$gameName")
@@ -118,26 +114,21 @@ class MainActivity : ComponentActivity() {
                 text = {
                     Column {
                         Text("Introduce el nombre del nuevo juego:")
-                        BasicTextField(
+                        TextField(
                             value = newGameName,
                             onValueChange = { newGameName = it },
-                            textStyle = TextStyle(color = Color.White),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(8.dp)
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 },
                 confirmButton = {
-                    Button(
-                        onClick = {
-                            if (newGameName.text.isNotBlank()) {
-                                viewModel.addGame(Game(0, newGameName.text))  // Usar el ViewModel para agregar un juego
-                                newGameName = TextFieldValue("")
-                            }
+                    Button(onClick = {
+                        if (newGameName.isNotBlank()) {
+                            viewModel.addGame(Game(0, newGameName)) // Agrega un juego manualmente
+                            newGameName = ""
                             showCreateDialog = false
                         }
-                    ) {
+                    }) {
                         Text("Crear")
                     }
                 },
@@ -149,56 +140,34 @@ class MainActivity : ComponentActivity() {
             )
         }
 
-        // 2. Dialogo para seleccionar juego
+        // Diálogo para seleccionar un juego (puedes expandir esto según lo necesites)
         if (showSelectDialog) {
             AlertDialog(
                 onDismissRequest = { showSelectDialog = false },
                 title = { Text("Seleccionar juego") },
                 text = {
-                    Column {
-                        Text("Selecciona un juego para editar o eliminar:")
-                        LazyColumn {
-                            items(games) { game ->
-                                Text(
-                                    text = game.name,  // Usamos game.name para mostrar el nombre del juego
-                                    modifier = Modifier
-                                        .clickable {
-                                            selectedGame = game  // Se selecciona el juego completo
-                                        }
-                                        .padding(8.dp)
-                                )
-                            }
-                        }
-
-                        // Mostrar el juego seleccionado
-                        if (selectedGame.toString().isNotBlank()) {
-                            Text("Juego seleccionado: $selectedGame", color = Color.Gray)
+                    LazyColumn {
+                        items(games) { game ->
+                            Text(
+                                text = game.name,
+                                modifier = Modifier
+                                    .clickable { selectedGame = game }
+                                    .padding(8.dp)
+                            )
                         }
                     }
                 },
                 confirmButton = {
-                    Button(
-                        onClick = {
-                            if (selectedGame.toString().isNotBlank()) {
-                                showEditDialog = true // Muestra el diálogo de edición
-                                showSelectDialog = false // Cerramos el diálogo de selección
-                            }
-                        }
-                    ) {
-                        Text("Editar")
+                    Button(onClick = {
+                        // Aquí podrías manejar ediciones, por ejemplo.
+                        showSelectDialog = false
+                    }) {
+                        Text("Aceptar")
                     }
                 },
                 dismissButton = {
-                    Button(
-                        onClick = {
-                            if (selectedGame.toString().isNotBlank()) {
-                                // Eliminar el juego seleccionado
-                                games = games.filter { it != selectedGame }
-                                showDeleteDialog = false // Cerramos el diálogo de eliminación
-                            }
-                        }
-                    ) {
-                        Text("Eliminar")
+                    Button(onClick = { showSelectDialog = false }) {
+                        Text("Cancelar")
                     }
                 }
             )
@@ -210,12 +179,13 @@ class MainActivity : ComponentActivity() {
                 onDismissRequest = { showDeleteDialog = false },
                 title = { Text("Eliminar juego") },
                 text = {
-                    Text("¿Estás seguro de que quieres eliminar \"$selectedGame\"?")
+                    Text("¿Estás seguro de que quieres eliminar \"${selectedGame?.name}\"?")
                 },
                 confirmButton = {
                     Button(
                         onClick = {
-                            games = games.filter { it != selectedGame }
+                            selectedGame?.let { viewModel.removeGame(it) } // Llama al ViewModel para eliminar el juego
+                            selectedGame = null
                             showDeleteDialog = false
                         }
                     ) {
@@ -223,7 +193,10 @@ class MainActivity : ComponentActivity() {
                     }
                 },
                 dismissButton = {
-                    Button(onClick = { showDeleteDialog = false }) {
+                    Button(onClick = {
+                        selectedGame = null
+                        showDeleteDialog = false
+                    }) {
                         Text("Cancelar")
                     }
                 }
@@ -232,7 +205,7 @@ class MainActivity : ComponentActivity() {
     }
 
 
-    @Composable
+        @Composable
     fun GameListScreen(
         games: List<Game>, // Cambié de List<String> a List<Game>
         onAddGame: () -> Unit,

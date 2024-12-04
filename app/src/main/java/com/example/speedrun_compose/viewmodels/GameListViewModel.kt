@@ -7,16 +7,17 @@ import androidx.lifecycle.viewModelScope
 import com.example.speedrun_compose.Game
 import com.example.speedrun_compose.RetrofitInstance
 import kotlinx.coroutines.launch
-import androidx.compose.runtime.State
-import androidx.compose.runtime.mutableStateOf
-
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
 class GameListViewModel : ViewModel() {
-    private val _games = mutableStateOf<List<Game>>(emptyList())
-    val games: State<List<Game>> = _games
+    // Usamos MutableStateFlow para la lista de juegos
+    private val _games = MutableStateFlow<List<Game>>(emptyList())
+    val games: StateFlow<List<Game>> = _games
 
     fun addGame(game: Game) {
-        _games.value += game  // Añade el nuevo juego a la lista
+        // Añadimos el nuevo juego a la lista de manera reactiva
+        _games.value = _games.value + game
     }
 
     init {
@@ -24,13 +25,19 @@ class GameListViewModel : ViewModel() {
     }
 
     private fun fetchGames() {
+        // Llamada a la API para obtener los juegos
         viewModelScope.launch {
             try {
-                val response = RetrofitInstance.api.getGames(apiKey = "TU_API_KEY")
-                _games.value = response.results
+                val response = RetrofitInstance.api.getGames()  // Llamada a la API
+                _games.value = response.results  // Actualizamos el estado con los juegos obtenidos
             } catch (e: Exception) {
                 Log.e("GameListViewModel", "Error fetching games: ${e.message}")
             }
         }
     }
+
+    fun removeGame(game: Game) {
+        _games.value = _games.value.filter { it != game }
+    }
+
 }
