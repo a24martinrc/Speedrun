@@ -17,7 +17,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
@@ -31,8 +30,14 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Pause
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.speedrun_compose.viewmodels.GameListViewModel
+import com.example.speedrun_compose.viewmodels.SharedGameViewModel
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.AndroidEntryPoint
+import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.launch
 
-
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     @RequiresApi(Build.VERSION_CODES.M)
@@ -223,20 +228,9 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-
     @Composable
-    fun GameItem(game: String, onGameSelected: (String) -> Unit) {
-        Column(modifier = Modifier.padding(8.dp)) {
-            Text(text = game)
-            Button(onClick = { onGameSelected(game) }) {
-                Text("Ver detalles")
-            }
-        }
-    }
-
-    @Composable
-    fun GameDetailScreen(gameName: String) {
-        var sections by remember { mutableStateOf(listOf<String>()) }
+    fun GameDetailScreen(gameName: String, viewModel: SharedGameViewModel = hiltViewModel()) {
+        var sections = viewModel.getSections(gameName)
         var selectedSection by remember { mutableStateOf("") }
         var sectionTimers by remember { mutableStateOf(mapOf<String, Pair<Long, Boolean>>()) }
         var totalElapsedTime by remember { mutableStateOf(0L) }
@@ -388,11 +382,12 @@ class MainActivity : ComponentActivity() {
                     Button(
                         onClick = {
                             if (newSectionName.text.isNotBlank()) {
-                                sections = sections + newSectionName.text
-                                sectionTimers = sectionTimers + (newSectionName.text to (0L to false))
-                                newSectionName = TextFieldValue("") // Limpiar campo
+                                viewModel.viewModelScope.launch {
+                                    viewModel.addSection(gameName, newSectionName.text)
+                                }
+                                newSectionName = TextFieldValue("")
+                                showCreateSectionDialog = false
                             }
-                            showCreateSectionDialog = false
                         }
                     ) {
                         Text("Crear")
@@ -405,7 +400,6 @@ class MainActivity : ComponentActivity() {
                 }
             )
         }
-
         if (showEditSectionDialog && selectedSection.isNotEmpty()) {
             AlertDialog(
                 onDismissRequest = { showEditSectionDialog = false },
@@ -473,9 +467,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-
-
-
     @Composable
     fun AddSpeedrunScreen(gameName: String) {
         var time by remember { mutableStateOf(TextFieldValue("")) }
@@ -519,3 +510,4 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
