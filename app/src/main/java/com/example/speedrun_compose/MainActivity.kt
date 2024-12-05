@@ -167,12 +167,12 @@ class MainActivity : ComponentActivity() {
                         // Aquí podrías manejar ediciones, por ejemplo.
                         showSelectDialog = false
                     }) {
-                        Text("Aceptar")
+                        Text("Editar")
                     }
                 },
                 dismissButton = {
                     Button(onClick = { showSelectDialog = false }) {
-                        Text("Cancelar")
+                        Text("Eliminar")
                     }
                 }
             )
@@ -210,7 +210,7 @@ class MainActivity : ComponentActivity() {
     }
 
 
-        @Composable
+    @Composable
     fun GameListScreen(
         games: List<Game>, // Cambié de List<String> a List<Game>
         onAddGame: () -> Unit,
@@ -218,15 +218,24 @@ class MainActivity : ComponentActivity() {
     ) {
         LazyColumn {
             items(games) { game ->
+                // Separador encima del ítem
+                HorizontalDivider(thickness = 1.dp, color = Color(0xFF757575))
+
+                // Hacer que toda la fila sea clickeable para navegar a la pantalla de detalles
                 Text(
                     text = game.name, // Usamos el nombre del juego
                     modifier = Modifier
-                        .clickable { onGameSelected(game.name) } // Pasamos el nombre del juego
+                        .clickable { onGameSelected(game.name) }
+                        .fillMaxWidth()
                         .padding(8.dp)
                 )
+
+                // Separador debajo del ítem
+                HorizontalDivider(thickness = 1.dp, color = Color(0xFF757575))
             }
         }
     }
+
 
     @Composable
     fun GameDetailScreen(gameName: String, viewModel: SharedGameViewModel = hiltViewModel()) {
@@ -283,7 +292,9 @@ class MainActivity : ComponentActivity() {
                                     .fillMaxWidth()
                                     .padding(8.dp)
                                     .background(
-                                        if (selectedSection == section) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                                        if (selectedSection == section) MaterialTheme.colorScheme.primary.copy(
+                                            alpha = 0.2f
+                                        )
                                         else Color.Transparent
                                     )
                                     .border(
@@ -487,8 +498,14 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    fun BottomMenuBar(onCreateGame: () -> Unit, onEditGame: () -> Unit, onDeleteGame: () -> Unit) {
+    fun BottomMenuBar(
+        onCreateGame: () -> Unit,
+        onEditGame: () -> Unit,
+        onDeleteGame: () -> Unit
+    ) {
         BottomAppBar(
+            containerColor = Color(0xFF212121), // Color de fondo personalizado (gris oscuro)
+            contentColor = Color.White, // Color de los íconos y texto (blanco)
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(0.dp)
@@ -498,16 +515,30 @@ class MainActivity : ComponentActivity() {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 IconButton(onClick = { onCreateGame() }) {
-                    Icon(Icons.Filled.Add, contentDescription = "Crear Juego")
+                    Icon(
+                        Icons.Filled.Add,
+                        contentDescription = "Crear Juego",
+                        tint = Color.White // Ícono blanco
+                    )
                 }
                 IconButton(onClick = { onEditGame() }) {
-                    Icon(Icons.Filled.Edit, contentDescription = "Editar Juego")
+                    Icon(
+                        Icons.Filled.Edit,
+                        contentDescription = "Editar Juego",
+                        tint = Color.White // Ícono blanco
+                    )
                 }
                 IconButton(onClick = { onDeleteGame() }) {
-                    Icon(Icons.Filled.Delete, contentDescription = "Borrar Juego")
+                    Icon(
+                        Icons.Filled.Delete,
+                        contentDescription = "Borrar Juego",
+                        tint = Color.White // Ícono blanco
+                    )
                 }
             }
         }
     }
+
+
 }
 

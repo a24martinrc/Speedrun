@@ -6,14 +6,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 // Define una paleta de colores personalizada (o usa la predeterminada)
-private val LightColorPalette = lightColorScheme(
-    primary = Color(0xFF6200EE),
-    secondary = Color(0xFF03DAC6),
-    background = Color(0xFFBB86FC),
-    surface = Color(0xFF121212),
+private val DarkColorPalette = lightColorScheme(
+    primary = Color(0xFF757575),
+    secondary = Color(0xFF9B9B9B),
+    background = Color(0xFF1D1D1D),
+    surface = Color(0xFF1D1D1D),
     onPrimary = Color.White,
-    onSecondary = Color.Black,
-    onBackground = Color.Black,
+    onSecondary = Color.White,
+    onBackground = Color.White,
     onSurface = Color.White
 )
 
@@ -21,7 +21,7 @@ private val LightColorPalette = lightColorScheme(
 @Composable
 fun SpeedRunAppTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = LightColorPalette, // Usamos nuestra paleta de colores personalizada
+        colorScheme = DarkColorPalette, // Usamos nuestra paleta de colores personalizada
         typography = Typography, // Se puede personalizar si lo deseas
         content = content // El contenido de la aplicación
     )
