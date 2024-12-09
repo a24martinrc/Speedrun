@@ -154,32 +154,63 @@ class MainActivity : ComponentActivity() {
                 onDismissRequest = { showSelectDialog = false },
                 title = { Text("Seleccionar juego") },
                 text = {
-                    LazyColumn {
-                        items(games) { game ->
-                            Text(
-                                text = game.name,
-                                modifier = Modifier
-                                    .clickable { selectedGame = game }
-                                    .padding(8.dp)
-                            )
+                    Column {
+                        Text("Introduce el nuevo nombre para el juego:")
+                        TextField(
+                            value = newGameName,  // Usamos la variable para el nuevo nombre
+                            onValueChange = { newGameName = it },  // Actualizamos el nombre a medida que el usuario escribe
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(16.dp)) // Añadimos un espacio
+                        Text("Selecciona un juego para editar:")
+                        LazyColumn {
+                            items(games) { game ->
+                                Text(
+                                    text = game.name,
+                                    modifier = Modifier
+                                        .clickable {
+                                            selectedGame = game
+                                            newGameName = game.name // Aseguramos que el nombre del juego se cargue al editar
+                                        }
+                                        .padding(8.dp)
+                                        .border(
+                                            width = 2.dp,
+                                            color = if (selectedGame == game) Color.Gray else Color.Transparent, // Borde visible solo cuando está seleccionada
+                                            shape = RoundedCornerShape(8.dp)
+                                        )
+                                        .background(if (selectedGame == game) Color(0xFF9B9B9B) else Color.Transparent, shape = RoundedCornerShape(8.dp))
+                                        .padding(16.dp)
+                                )
+                            }
                         }
                     }
                 },
                 confirmButton = {
                     Button(onClick = {
-                        // Aquí podrías manejar ediciones, por ejemplo.
+                        selectedGame?.let {
+                            if (newGameName.isNotBlank()) {
+                                // Llama a la función editGame del ViewModel con el nuevo nombre
+                                viewModel.editGame(it, newGameName)
+                            }
+                        }
                         showSelectDialog = false
+                        newGameName = ""  // Limpiamos el campo después de la edición
                     }) {
                         Text("Editar")
                     }
                 },
                 dismissButton = {
-                    Button(onClick = { showSelectDialog = false }) {
-                        Text("Eliminar")
+                    Button(onClick = {
+                        selectedGame = null
+                        showSelectDialog = false
+                        newGameName = ""  // Limpiamos el campo si se cancela
+                    }) {
+                        Text("Cancelar")
                     }
                 }
             )
         }
+
 
         // Diálogo para confirmar la eliminación del juego
         if (showDeleteDialog) {

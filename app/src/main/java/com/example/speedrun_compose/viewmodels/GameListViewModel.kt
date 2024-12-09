@@ -36,6 +36,18 @@ class GameListViewModel : ViewModel() {
         }
     }
 
+    fun editGame(game: Game, newName: String) {
+        _games.value = _games.value.map {
+            if (it.id == game.id) {
+                // Crear un nuevo objeto Game con el nuevo nombre
+                it.copy(name = newName)
+            } else {
+                it
+            }
+        }
+    }
+
+
     fun removeGame(game: Game) {
         _games.value = _games.value.filter { it != game }
     }
