@@ -278,6 +278,7 @@ class MainActivity : ComponentActivity() {
         var showCreateSectionDialog by remember { mutableStateOf(false) }
         var showEditSectionDialog by remember { mutableStateOf(false) }
         var showDeleteSectionDialog by remember { mutableStateOf(false) }
+        val visuallyDeletedSections = remember { mutableStateListOf<String>() }
         var newSectionName by remember { mutableStateOf(TextFieldValue("")) }
 
         // Actualizar los cronómetros
@@ -335,7 +336,12 @@ class MainActivity : ComponentActivity() {
                                     )
                                 }
 
-                                items(sectionsList) { section ->
+                                // Filtra las secciones eliminadas visualmente
+                                val filteredSections = sectionsList.filter { section ->
+                                    !visuallyDeletedSections.contains(section)
+                                }
+
+                                items(filteredSections) { section ->
                                     val (time, isRunning) = sectionTimers[section] ?: (0L to false)
                                     val isSelected = section == selectedSection // Define si esta sección está seleccionada
 
@@ -481,14 +487,13 @@ class MainActivity : ComponentActivity() {
                 AlertDialog(
                     onDismissRequest = { showDeleteSectionDialog = false },
                     title = { Text("Eliminar sección") },
-                    text = { Text("¿Estás seguro de que deseas eliminar \"$selectedSection\"?") },
+                    text = { Text("¿Estás seguro de que deseas eliminar \"$selectedSection\" de la vista?") },
                     confirmButton = {
                         Button(
                             onClick = {
-                                viewModel.viewModelScope.launch {
-                                    viewModel.deleteSection(gameName, selectedSection)
-                                }
-                                selectedSection = ""
+                                // Añadir la sección a la lista de eliminados visualmente
+                                visuallyDeletedSections.add(selectedSection)
+                                selectedSection = "" // Limpiar la selección
                                 showDeleteSectionDialog = false
                             }
                         ) {
