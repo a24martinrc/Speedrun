@@ -37,8 +37,13 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.collectAsState
-
-
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -78,7 +83,7 @@ class MainActivity : ComponentActivity() {
         }
 
         Scaffold(
-            topBar = { /* Configura una barra superior si lo deseas */ },
+            topBar = { MyTopBar(title = "SpeedBomb") },
             bottomBar = {
                 if (currentRoute == "game_list") {
                     BottomMenuBar(
@@ -530,6 +535,30 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    @OptIn(ExperimentalMaterial3Api::class)
+    @Composable
+    fun MyTopBar(title: String) {
+        TopAppBar(
+            title = {
+                Text(
+                    text = title,
+                    style = TextStyle(
+                        fontWeight = FontWeight.Bold,  // Opcional, elige el peso de la fuente
+                        fontSize = 20.sp  // Opcional, ajusta el tamaño de la fuente
+                    )
+                )
+            },
+            colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                titleContentColor = Color.White
+            ),
+            modifier = Modifier.background(MaterialTheme.colorScheme.primary),
+        )
+    }
+
+
+
 
     @Composable
     fun BottomMenuBar(
