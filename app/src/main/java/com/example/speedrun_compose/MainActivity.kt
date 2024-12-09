@@ -1,6 +1,5 @@
 package com.example.speedrun_compose
 
-import android.annotation.SuppressLint
 import com.example.speedrun_compose.viewmodels.SharedGameViewModel
 import android.os.Build
 import android.os.Bundle
@@ -272,9 +271,9 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun GameDetailScreen(gameName: String, viewModel: SharedGameViewModel = hiltViewModel()) {
-        val sections by viewModel.sections.collectAsState(initial = emptyMap<String, List<String>>())
+        val sections by viewModel.sections.collectAsState(initial = emptyMap())
         var selectedSection by remember { mutableStateOf("") }
-        var sectionTimers = remember { mutableStateMapOf<String, Pair<Long, Boolean>>() }
+        val sectionTimers = remember { mutableStateMapOf<String, Pair<Long, Boolean>>() }
         var totalElapsedTime by remember { mutableLongStateOf(0L) }
         var showCreateSectionDialog by remember { mutableStateOf(false) }
         var showEditSectionDialog by remember { mutableStateOf(false) }
@@ -284,7 +283,7 @@ class MainActivity : ComponentActivity() {
         // Actualizar los cronómetros
         LaunchedEffect(key1 = sections) {
             sectionTimers.clear()
-            sections.forEach { (gameName, sectionsList) ->
+            sections.forEach { (_, sectionsList) ->
                 sectionsList.forEach { section ->
                     sectionTimers[section] = sectionTimers[section] ?: (0L to false)
                 }
