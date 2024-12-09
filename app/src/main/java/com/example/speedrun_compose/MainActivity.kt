@@ -1,5 +1,7 @@
 package com.example.speedrun_compose
 
+import android.annotation.SuppressLint
+import com.example.speedrun_compose.viewmodels.SharedGameViewModel
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -26,16 +28,18 @@ import com.example.speedrun_compose.ui.theme.SpeedRunAppTheme
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Pause
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.speedrun_compose.viewmodels.GameListViewModel
-import com.example.speedrun_compose.viewmodels.SharedGameViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.AndroidEntryPoint
-import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.collectAsState
+
+
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -94,7 +98,6 @@ class MainActivity : ComponentActivity() {
                 composable("game_list") {
                     GameListScreen(
                         games = games,
-                        onAddGame = { showCreateDialog = true },
                         onGameSelected = { gameName ->
                             navController.navigate("game_details/$gameName")
                         }
@@ -213,7 +216,6 @@ class MainActivity : ComponentActivity() {
     @Composable
     fun GameListScreen(
         games: List<Game>, // Cambié de List<String> a List<Game>
-        onAddGame: () -> Unit,
         onGameSelected: (String) -> Unit
     ) {
         LazyColumn {
@@ -239,39 +241,48 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun GameDetailScreen(gameName: String, viewModel: SharedGameViewModel = hiltViewModel()) {
-        var sections = viewModel.getSections(gameName)
+        val sections by viewModel.sections.collectAsState(initial = emptyMap<String, List<String>>())
         var selectedSection by remember { mutableStateOf("") }
-        var sectionTimers by remember { mutableStateOf(mapOf<String, Pair<Long, Boolean>>()) }
-        var totalElapsedTime by remember { mutableStateOf(0L) }
+        var sectionTimers = remember { mutableStateMapOf<String, Pair<Long, Boolean>>() }
+        var totalElapsedTime by remember { mutableLongStateOf(0L) }
         var showCreateSectionDialog by remember { mutableStateOf(false) }
         var showEditSectionDialog by remember { mutableStateOf(false) }
         var showDeleteSectionDialog by remember { mutableStateOf(false) }
         var newSectionName by remember { mutableStateOf(TextFieldValue("")) }
 
-        // Efecto para gestionar los cronómetros activos
+        // Actualizar los cronómetros
+        LaunchedEffect(key1 = sections) {
+            sectionTimers.clear()
+            sections.forEach { (gameName, sectionsList) ->
+                sectionsList.forEach { section ->
+                    sectionTimers[section] = sectionTimers[section] ?: (0L to false)
+                }
+            }
+        }
+
         LaunchedEffect(sectionTimers) {
             while (true) {
-                kotlinx.coroutines.delay(10L) // Reducimos el intervalo a 10 ms para contar milisegundos
-                sectionTimers = sectionTimers.mapValues { (key, value) ->
+                kotlinx.coroutines.delay(10L)
+                sectionTimers.forEach { (key, value) ->
                     val (time, isRunning) = value
-                    if (isRunning) time + 10 to isRunning else time to isRunning
+                    if (isRunning) {
+                        sectionTimers[key] = time + 10L to true
+                    }
                 }
                 totalElapsedTime = sectionTimers.values.sumOf { it.first }
             }
         }
 
-        // Función para convertir tiempo en milisegundos a horas:minutos:segundos.milisegundos
+        // Función para convertir tiempo en milisegundos a formato hh:mm:ss
         fun formatTime(milliseconds: Long): String {
-            val hours = (milliseconds / 3600000).toInt() // 1 hora = 3600000 milisegundos
-            val minutes = ((milliseconds % 3600000) / 60000).toInt() // 1 minuto = 60000 milisegundos
-            val seconds = ((milliseconds % 60000) / 1000).toInt() // 1 segundo = 1000 milisegundos
-            val millis = (milliseconds % 1000).toInt() // Milisegundos
-
+            val hours = (milliseconds / 3600000).toInt()
+            val minutes = ((milliseconds % 3600000) / 60000).toInt()
+            val seconds = ((milliseconds % 60000) / 1000).toInt()
+            val millis = (milliseconds % 1000).toInt()
             return String.format("%02d:%02d:%02d.%03d", hours, minutes, seconds, millis)
         }
 
         Column(modifier = Modifier.fillMaxSize()) {
-            // Contenido principal
             Column(
                 modifier = Modifier
                     .fillMaxHeight()
@@ -280,203 +291,191 @@ class MainActivity : ComponentActivity() {
             ) {
                 Text("Detalles de $gameName", style = MaterialTheme.typography.headlineSmall)
 
-                // Lista de secciones
                 if (sections.isEmpty()) {
                     Text("No hay secciones añadidas.", color = Color.Gray)
                 } else {
                     LazyColumn {
-                        items(sections) { section ->
-                            val (time, isRunning) = sectionTimers[section] ?: 0L to false
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(8.dp)
-                                    .background(
-                                        if (selectedSection == section) MaterialTheme.colorScheme.primary.copy(
-                                            alpha = 0.2f
-                                        )
-                                        else Color.Transparent
-                                    )
-                                    .border(
-                                        width = if (selectedSection == section) 2.dp else 0.dp,
-                                        color = if (selectedSection == section) MaterialTheme.colorScheme.primary else Color.Transparent
-                                    )
-                                    .clickable { selectedSection = section }, // Cambiar la selección al hacer clic
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
+                        sections.forEach { (game, sectionsList) ->
+                            if (game == gameName) { // Verifica si el juego coincide
+                                item {
                                     Text(
-                                        section,
-                                        style = if (selectedSection == section) MaterialTheme.typography.bodyLarge.copy(
-                                            color = MaterialTheme.colorScheme.primary
-                                        ) else MaterialTheme.typography.bodyLarge
+                                        game,
+                                        style = MaterialTheme.typography.titleLarge,
+                                        modifier = Modifier.padding(8.dp)
                                     )
-                                    Text("Tiempo: ${formatTime(time)}")
                                 }
-                                IconButton(
-                                    onClick = {
-                                        sectionTimers = sectionTimers.mapValues { (key, value) ->
-                                            if (key == section) value.first to !value.second else value
+
+                                items(sectionsList) { section ->
+                                    val (time, isRunning) = sectionTimers[section] ?: (0L to false)
+                                    val isSelected = section == selectedSection // Define si esta sección está seleccionada
+
+                                    // Verifica si hay algún cronómetro en ejecución
+                                    val isAnySectionRunning = sectionTimers.values.any { it.second }
+
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(8.dp)
+                                            .clickable {
+                                                if (!isAnySectionRunning) { // Solo permite la selección si no hay cronómetros en ejecución
+                                                    selectedSection = section
+                                                }
+                                            }
+                                            .border(
+                                                width = 2.dp,
+                                                color = if (isSelected) Color.Gray else Color.Transparent, // Borde visible solo cuando está seleccionada
+                                                shape = RoundedCornerShape(8.dp)
+                                            )
+                                            .background(if (isSelected) Color(0xFF1D1D1D) else Color.Transparent), // Fondo con color cuando seleccionada
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(section) // Nombre de la sección
+                                            Text("Tiempo: ${formatTime(time)}")
+                                        }
+
+                                        // Solo permite cambiar el estado del cronómetro si no hay cronómetros en ejecución
+                                        IconButton(
+                                            onClick = {
+                                                if (!isAnySectionRunning || isRunning) { // Solo permite activar o pausar si todos están pausados
+                                                    val (currentTime, isRunning) = sectionTimers[section]
+                                                        ?: (0L to false)
+                                                    sectionTimers[section] = currentTime to !isRunning
+                                                }
+                                            }
+                                        ) {
+                                            Icon(
+                                                if (isRunning) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                                                contentDescription = if (isRunning) "Pausar" else "Reanudar"
+                                            )
                                         }
                                     }
-                                ) {
-                                    Icon(
-                                        if (isRunning) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                                        contentDescription = if (isRunning) "Pausar" else "Reanudar"
-                                    )
                                 }
                             }
                         }
                     }
-
                 }
 
-                Spacer(modifier = Modifier.weight(1f))
-
-                // Cronómetro total (con formato adecuado)
                 Text(
                     "Tiempo total acumulado: ${formatTime(totalElapsedTime)}",
                     style = MaterialTheme.typography.bodyLarge,
-                    color = Color.Blue
+                    color = Color(0xFF9B9B9B)
                 )
             }
 
-            // Menú de gestión de secciones (abajo)
             Row(
                 horizontalArrangement = Arrangement.SpaceEvenly,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp)
-                    .background(MaterialTheme.colorScheme.surface)
-                    .padding(vertical = 8.dp)
+                modifier = Modifier.fillMaxWidth()
             ) {
-                // Botón para agregar una nueva sección
                 IconButton(onClick = { showCreateSectionDialog = true }) {
                     Icon(Icons.Filled.Add, contentDescription = "Añadir Sección")
                 }
 
-                // Botón para editar la sección seleccionada
                 IconButton(
-                    onClick = {
-                        if (selectedSection.isNotEmpty()) showEditSectionDialog = true
-                    },
+                    onClick = { if (selectedSection.isNotEmpty()) showEditSectionDialog = true },
                     enabled = selectedSection.isNotEmpty()
                 ) {
                     Icon(Icons.Filled.Edit, contentDescription = "Editar Sección")
                 }
 
-                // Botón para eliminar la sección seleccionada
                 IconButton(
-                    onClick = {
-                        if (selectedSection.isNotEmpty()) showDeleteSectionDialog = true
-                    },
+                    onClick = { if (selectedSection.isNotEmpty()) showDeleteSectionDialog = true },
                     enabled = selectedSection.isNotEmpty()
                 ) {
                     Icon(Icons.Filled.Delete, contentDescription = "Eliminar Sección")
                 }
             }
-        }
 
-        // Diálogos (Crear, Editar, Eliminar)
-        if (showCreateSectionDialog) {
-            AlertDialog(
-                onDismissRequest = { showCreateSectionDialog = false },
-                title = { Text("Crear una nueva sección") },
-                text = {
-                    TextField(
-                        value = newSectionName,
-                        onValueChange = { newSectionName = it },
-                        label = { Text("Nombre de la sección") }
-                    )
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            if (newSectionName.text.isNotBlank()) {
+            if (showCreateSectionDialog) {
+                AlertDialog(
+                    onDismissRequest = { showCreateSectionDialog = false },
+                    title = { Text("Crear nueva sección") },
+                    text = {
+                        TextField(
+                            value = newSectionName,
+                            onValueChange = { newSectionName = it }
+                        )
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
                                 viewModel.viewModelScope.launch {
                                     viewModel.addSection(gameName, newSectionName.text)
                                 }
                                 newSectionName = TextFieldValue("")
                                 showCreateSectionDialog = false
                             }
+                        ) {
+                            Text("Crear")
                         }
-                    ) {
-                        Text("Crear")
                     }
-                },
-                dismissButton = {
-                    Button(onClick = { showCreateSectionDialog = false }) {
-                        Text("Cancelar")
-                    }
-                }
-            )
-        }
-        if (showEditSectionDialog && selectedSection.isNotEmpty()) {
-            AlertDialog(
-                onDismissRequest = { showEditSectionDialog = false },
-                title = { Text("Editar sección") },
-                text = {
-                    TextField(
-                        value = newSectionName,
-                        onValueChange = { newSectionName = it },
-                        label = { Text("Nuevo nombre para \"$selectedSection\"") }
-                    )
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            if (newSectionName.text.isNotBlank()) {
-                                val updatedSections = sections.map {
-                                    if (it == selectedSection) newSectionName.text else it
-                                }
-                                val updatedTimers = sectionTimers.mapKeys {
-                                    if (it.key == selectedSection) newSectionName.text else it.key
-                                }
-                                sections = updatedSections
-                                sectionTimers = updatedTimers
-                                selectedSection = newSectionName.text
-                                newSectionName = TextFieldValue("") // Limpiar campo
-                            }
-                            showEditSectionDialog = false
-                        }
-                    ) {
-                        Text("Guardar")
-                    }
-                },
-                dismissButton = {
-                    Button(onClick = { showEditSectionDialog = false }) {
-                        Text("Cancelar")
-                    }
-                }
-            )
-        }
+                )
+            }
 
-        if (showDeleteSectionDialog && selectedSection.isNotEmpty()) {
-            AlertDialog(
-                onDismissRequest = { showDeleteSectionDialog = false },
-                title = { Text("Eliminar sección") },
-                text = { Text("¿Estás seguro de que deseas eliminar \"$selectedSection\"?") },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            sections = sections.filter { it != selectedSection }
-                            sectionTimers = sectionTimers - selectedSection
-                            selectedSection = ""
-                            totalElapsedTime = sectionTimers.values.sumOf { it.first }
-                            showDeleteSectionDialog = false
+            if (showEditSectionDialog && selectedSection.isNotEmpty()) {
+                AlertDialog(
+                    onDismissRequest = { showEditSectionDialog = false },
+                    title = { Text("Editar sección") },
+                    text = {
+                        TextField(
+                            value = newSectionName,
+                            onValueChange = { newSectionName = it },
+                            label = { Text("Nuevo nombre para \"$selectedSection\"") }
+                        )
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                if (newSectionName.text.isNotBlank()) {
+                                    viewModel.viewModelScope.launch {
+                                        viewModel.editSection(gameName, selectedSection, newSectionName.text)
+                                    }
+                                    selectedSection = newSectionName.text // Cambia la sección seleccionada
+                                    newSectionName = TextFieldValue("") // Limpia el campo
+                                }
+                                showEditSectionDialog = false
+                            }
+                        ) {
+                            Text("Guardar")
                         }
-                    ) {
-                        Text("Eliminar")
+                    },
+                    dismissButton = {
+                        Button(onClick = { showEditSectionDialog = false }) {
+                            Text("Cancelar")
+                        }
                     }
-                },
-                dismissButton = {
-                    Button(onClick = { showDeleteSectionDialog = false }) {
-                        Text("Cancelar")
+                )
+            }
+
+            if (showDeleteSectionDialog && selectedSection.isNotEmpty()) {
+                AlertDialog(
+                    onDismissRequest = { showDeleteSectionDialog = false },
+                    title = { Text("Eliminar sección") },
+                    text = { Text("¿Estás seguro de que deseas eliminar \"$selectedSection\"?") },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                viewModel.viewModelScope.launch {
+                                    viewModel.deleteSection(gameName, selectedSection)
+                                }
+                                selectedSection = ""
+                                showDeleteSectionDialog = false
+                            }
+                        ) {
+                            Text("Eliminar")
+                        }
+                    },
+                    dismissButton = {
+                        Button(onClick = { showDeleteSectionDialog = false }) {
+                            Text("Cancelar")
+                        }
                     }
-                }
-            )
+                )
+            }
+
         }
     }
+
 
     @Composable
     fun AddSpeedrunScreen(gameName: String) {
