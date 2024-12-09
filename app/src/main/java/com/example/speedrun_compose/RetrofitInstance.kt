@@ -8,13 +8,13 @@ object RetrofitInstance {
     private const val BASE_URL = "https://www.giantbomb.com/api/"
 
     private val client = OkHttpClient.Builder()
-        .addInterceptor(ApiKeyInterceptor())  // Asegúrate de que esto esté configurado correctamente
+        .addInterceptor(ApiKeyInterceptor())
         .build()
 
     val api: GameApiService by lazy {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
-            .client(client)  // Utilizar el cliente con interceptor
+            .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(GameApiService::class.java)

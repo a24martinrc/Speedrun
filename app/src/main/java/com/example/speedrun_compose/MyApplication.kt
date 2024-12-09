@@ -5,5 +5,4 @@ import dagger.hilt.android.HiltAndroidApp
 
 @HiltAndroidApp
 class MyApplication : Application() {
-    // Aquí podrías realizar configuraciones globales si es necesario
 }
